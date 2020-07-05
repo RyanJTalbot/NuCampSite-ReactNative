@@ -5,7 +5,7 @@ import createConfigGetter from './createConfigGetter';
 import NavigationActions from '../NavigationActions';
 import StackActions from './StackActions';
 import validateRouteConfigMap from './validateRouteConfigMap';
-import getNavigationActionCreators from './getNavigationActionCreators';
+import { createPathParser } from './pathUtils';
 
 const defaultActionCreators = (route, navStateKey) => ({});
 
@@ -22,7 +22,7 @@ export default (routeConfigs, config = {}) => {
   validateRouteConfigMap(routeConfigs);
 
   const order = config.order || Object.keys(routeConfigs);
-  const paths = config.paths || {};
+
   const getCustomActionCreators =
     config.getCustomActionCreators || defaultActionCreators;
 
@@ -37,16 +37,18 @@ export default (routeConfigs, config = {}) => {
   const childRouters = {};
   order.forEach(routeName => {
     const routeConfig = routeConfigs[routeName];
-    if (!paths[routeName]) {
-      paths[routeName] =
-        typeof routeConfig.path === 'string' ? routeConfig.path : routeName;
-    }
     childRouters[routeName] = null;
     const screen = getScreenForRouteName(routeConfigs, routeName);
     if (screen.router) {
       childRouters[routeName] = screen.router;
     }
   });
+
+  const {
+    getPathAndParamsForRoute,
+    getActionForPathAndParams,
+  } = createPathParser(childRouters, routeConfigs, config);
+
   if (initialRouteIndex === -1) {
     throw new Error(
       `Invalid initialRouteName '${initialRouteName}'.` +
@@ -74,48 +76,47 @@ export default (routeConfigs, config = {}) => {
     };
   }
 
-  return {
-    getInitialState() {
-      const routes = order.map(resetChildRoute);
+  function getNextState(prevState, possibleNextState) {
+    if (!prevState) {
+      return possibleNextState;
+    }
+
+    let nextState;
+    if (prevState.index !== possibleNextState.index && resetOnBlur) {
+      const prevRouteName = prevState.routes[prevState.index].routeName;
+      const nextRoutes = [...possibleNextState.routes];
+      nextRoutes[prevState.index] = resetChildRoute(prevRouteName);
+
       return {
-        routes,
-        index: initialRouteIndex,
-        isTransitioning: false,
+        ...possibleNextState,
+        routes: nextRoutes,
       };
-    },
+    } else {
+      nextState = possibleNextState;
+    }
 
-    getNextState(prevState, possibleNextState) {
-      if (!prevState) {
-        return possibleNextState;
-      }
+    return nextState;
+  }
 
-      let nextState;
-      if (prevState.index !== possibleNextState.index && resetOnBlur) {
-        const prevRouteName = prevState.routes[prevState.index].routeName;
-        const nextRoutes = [...possibleNextState.routes];
-        nextRoutes[prevState.index] = resetChildRoute(prevRouteName);
+  function getInitialState() {
+    const routes = order.map(resetChildRoute);
+    return {
+      routes,
+      index: initialRouteIndex,
+      isTransitioning: false,
+    };
+  }
 
-        return {
-          ...possibleNextState,
-          routes: nextRoutes,
-        };
-      } else {
-        nextState = possibleNextState;
-      }
-
-      return nextState;
-    },
+  return {
+    childRouters,
 
     getActionCreators(route, stateKey) {
-      return {
-        ...getNavigationActionCreators(route),
-        ...getCustomActionCreators(route, stateKey),
-      };
+      return getCustomActionCreators(route, stateKey);
     },
 
     getStateForAction(action, inputState) {
       let prevState = inputState ? { ...inputState } : inputState;
-      let state = inputState || this.getInitialState();
+      let state = inputState || getInitialState();
       let activeChildIndex = state.index;
 
       if (action.type === NavigationActions.INIT) {
@@ -152,7 +153,7 @@ export default (routeConfigs, config = {}) => {
         if (activeChildState && activeChildState !== activeChildLastState) {
           const routes = [...state.routes];
           routes[state.index] = activeChildState;
-          return this.getNextState(prevState, {
+          return getNextState(prevState, {
             ...state,
             routes,
           });
@@ -189,7 +190,7 @@ export default (routeConfigs, config = {}) => {
             newChildState = childRouter
               ? childRouter.getStateForAction(action.action, childState)
               : null;
-          } else if (!action.action && !childRouter && action.params) {
+          } else if (!action.action && action.params) {
             newChildState = {
               ...childState,
               params: {
@@ -202,7 +203,7 @@ export default (routeConfigs, config = {}) => {
           if (newChildState && newChildState !== childState) {
             const routes = [...state.routes];
             routes[activeChildIndex] = newChildState;
-            return this.getNextState(prevState, {
+            return getNextState(prevState, {
               ...state,
               routes,
               index: activeChildIndex,
@@ -230,7 +231,7 @@ export default (routeConfigs, config = {}) => {
             ...lastRoute,
             params,
           };
-          return this.getNextState(prevState, {
+          return getNextState(prevState, {
             ...state,
             routes,
           });
@@ -238,7 +239,7 @@ export default (routeConfigs, config = {}) => {
       }
 
       if (activeChildIndex !== state.index) {
-        return this.getNextState(prevState, {
+        return getNextState(prevState, {
           ...state,
           index: activeChildIndex,
         });
@@ -282,7 +283,7 @@ export default (routeConfigs, config = {}) => {
       }
 
       if (index !== state.index || routes !== state.routes) {
-        return this.getNextState(prevState, {
+        return getNextState(prevState, {
           ...state,
           index,
           routes,
@@ -311,73 +312,11 @@ export default (routeConfigs, config = {}) => {
 
     getPathAndParamsForState(state) {
       const route = state.routes[state.index];
-      const routeName = order[state.index];
-      const subPath = paths[routeName];
-      const screen = getScreenForRouteName(routeConfigs, routeName);
-      let path = subPath;
-      let params = route.params;
-      if (screen && screen.router) {
-        const stateRoute = route;
-        // If it has a router it's a navigator.
-        // If it doesn't have router it's an ordinary React component.
-        const child = screen.router.getPathAndParamsForState(stateRoute);
-        path = subPath ? `${subPath}/${child.path}` : child.path;
-        params = child.params ? { ...params, ...child.params } : params;
-      }
-      return {
-        path,
-        params,
-      };
+      return getPathAndParamsForRoute(route);
     },
 
-    /**
-     * Gets an optional action, based on a relative path and query params.
-     *
-     * This will return null if there is no action matched
-     */
     getActionForPathAndParams(path, params) {
-      if (!path) {
-        return NavigationActions.navigate({
-          routeName: initialRouteName,
-          params,
-        });
-      }
-      return (
-        order
-          .map(childId => {
-            const parts = path.split('/');
-            const pathToTest = paths[childId];
-            const partsInTestPath = pathToTest.split('/').length;
-            const pathPartsToTest = parts.slice(0, partsInTestPath).join('/');
-            if (pathPartsToTest === pathToTest) {
-              const childRouter = childRouters[childId];
-              const action = NavigationActions.navigate({
-                routeName: childId,
-              });
-              if (childRouter && childRouter.getActionForPathAndParams) {
-                action.action = childRouter.getActionForPathAndParams(
-                  parts.slice(partsInTestPath).join('/'),
-                  params
-                );
-              }
-              if (params) {
-                action.params = params;
-              }
-              return action;
-            }
-            return null;
-          })
-          .find(action => !!action) ||
-        order
-          .map(childId => {
-            const childRouter = childRouters[childId];
-            return (
-              childRouter && childRouter.getActionForPathAndParams(path, params)
-            );
-          })
-          .find(action => !!action) ||
-        null
-      );
+      return getActionForPathAndParams(path, params);
     },
 
     getScreenOptions: createConfigGetter(
