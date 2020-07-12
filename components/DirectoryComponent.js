@@ -1,5 +1,5 @@
 import React, { Component } from "react";
-import { View, FlatList } from "react-native";
+import { View, FlatList, Text } from "react-native";
 import { Tile } from "react-native-elements";
 import { connect } from 'react-redux';
 import { baseUrl } from '../shared/baseUrl';
@@ -38,7 +38,7 @@ class Directory extends Component{
         if (this.props.campsites.errMess) {
             return (
                 <View>
-                    <Text>{props.campsites.errMess}</Text>
+                    <Text>{this.props.campsites.errMess}</Text>
                 </View>
             );
         }

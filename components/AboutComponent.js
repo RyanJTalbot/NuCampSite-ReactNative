@@ -50,7 +50,7 @@ class About extends Component {
     if (this.props.partners.isLoading) {
       return (
         <ScrollView>
-          <MIssion />
+          <Mission />
           <Card 
             title="Community Partners">
               <Loading />
@@ -61,7 +61,7 @@ class About extends Component {
     if (this.props.partners.errMess) {
       return (
         <ScrollView>
-          <MIssion />
+          <Mission />
           <Card 
             title="Community Partners">
               <Text>{this.props.partners.errMess}</Text>
@@ -71,7 +71,7 @@ class About extends Component {
     }
     return (
       <ScrollView>
-        <MIssion />
+        <Mission />
         <Card 
           title="Community Partners">
             <FlatList 
