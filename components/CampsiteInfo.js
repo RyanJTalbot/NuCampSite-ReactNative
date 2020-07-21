@@ -1,61 +1,32 @@
-import React, { Component } from 'react';
-import { Text, View, ScrollView, FlatList, Modal, Button, StyleSheet, Alert, PanResponder, Share } from 'react-native';
-import { Card, Icon, Rating, Input } from 'react-native-elements';
+import React, { Component } from "react";
+import { Text, View, ScrollView, FlatList, Modal, Button, StyleSheet, Alert, PanResponder, share } from "react-native";
+import { Card , Icon} from "react-native-elements";
 import { connect } from 'react-redux';
 import { baseUrl } from '../shared/baseUrl';
-import { postFavorite, postComment } from '../redux/ActionCreators';
+import { postFavorite } from '../redux/ActionCreators';
+import { Rating, Input } from 'react-native-elements';
 import * as Animatable from 'react-native-animatable';
 
-
 const mapStateToProps = state => {
-    return {
-        campsites: state.campsites,
-        comments: state.comments,
-        favorites: state.favorites
-    };
-}
-
-const mapDispatchToProps = {
-    postFavorite: campsiteId => (postFavorite(campsiteId)),
-    postComment: (campsiteId, rating, author, text, date) => (postComment(campsiteId, rating, author, text, date))
+  return {
+    campsites: state.campsites,
+    comments: state.comments,
+    favorites: state.favorites
+  };
 };
 
-function RenderComments({comments}) {
+const mapDispatchToProps = {
+    postFavorite: campsiteId => (postFavorite(campsiteId))
+};
 
-    const renderCommentItem = ({item}) => {
-        return (
-            <View style={{margin: 10}}>
-                <Text style={{fontSize: 14}}>{item.text}</Text>
-                <Rating 
-                    staringValue={item.rating}
-                    imageSize={10}
-                    style={{alignItems: 'flex-start', paddingVertical: '5%'}}
-                    read-only
-                />
-                <Text style={{fontSize: 12}}>{`-- ${item.author}, ${item.date}`}</Text>
-            </View>
-        );
-    };
-
-    return (
-        <Animatable.View animation='fadeInUp' duration={2000} delay={1000}>
-            <Card title='Comments'>
-                <FlatList
-                    data={comments}
-                    renderItem={renderCommentItem}
-                    keyExtractor={item => item.id.toString()}
-                />
-            </Card>
-        </Animatable.View>
-    );
-}
-
-function RenderCampsite(props) {
-    const recognizeComment = ({dx}) => (dx < 200 ) ? true: false;
-
+function RenderCampsite(props){
     const {campsite} = props;
-    const recognizeDrag = ({dx}) => (dx < -200) ? true: false;
+
     const view = React.createRef();
+
+    const recognizeDrag = ({dx}) => (dx < -200) ? true : false;
+
+    const recognizeComment = ({dx}) => (dx < 200) ? true : false;
 
     const panResponder = PanResponder.create({
         onStartShouldSetPanResponder: () => true,
@@ -83,10 +54,10 @@ function RenderCampsite(props) {
                     ],
                     { cancelable: false }
                 );
-            }
-            
-            else if (recognizeComment(gestureState)) {
-                props.showModal()
+            } else if(!recognizeDrag(gestureState)) {
+                if(!recognizeComment(gestureState)) {
+                    props.onShowModal();
+                }
             }
             return true;
         }
@@ -94,15 +65,15 @@ function RenderCampsite(props) {
 
     const shareCampsite = (title, message, url) => {
         Share.share({
-            title,
+            title: title,
             message: `${title}: ${message} ${url}`,
-            url
+            url: url
         },{
             dialogTitle: 'Share ' + title
         });
     };
-    
-    if (campsite) {
+
+    if(campsite){
         return (
             <Animatable.View 
                 animation='fadeInDown' 
@@ -110,13 +81,12 @@ function RenderCampsite(props) {
                 delay={1000}
                 ref={view}
                 {...panResponder.panHandlers}
-                >
-                <Card
+            >
+                <Card 
                     featuredTitle={campsite.name}
-                    image={{uri: baseUrl + campsite.image}}>
-                    <Text style={{margin: 10}}>
-                        {campsite.description}
-                    </Text>
+                    image={{uri: baseUrl + campsite.image}}
+                >
+                    <Text style={{margin:10}}> {campsite.description} </Text> 
                     <View style={styles.cardRow}>
                         <Icon
                             name={props.favorite ? 'heart' : 'heart-o'}
@@ -127,15 +97,14 @@ function RenderCampsite(props) {
                             onPress={() => props.favorite ? 
                                 console.log('Already set as a favorite') : props.markFavorite()}
                         />
-                        <Icon
-                            name={props.favorite ? 'pencil' : 'pencil'}
+                        <Icon 
                             style={styles.cardItem}
+                            name={props.favorite ? 'pencil' : 'pencil'}
                             type='font-awesome'
                             color='#5637DD'
                             raised
                             reverse
-                            onPress={() => props.showModal()} 
-                                
+                            onPress={() => props.onShowModal()}
                         />
                         <Icon
                             name={'share'}
@@ -143,63 +112,106 @@ function RenderCampsite(props) {
                             color='#5637DD'
                             style={styles.cardItem}
                             raised
-                            reversed
+                            reverse
                             onPress={() => shareCampsite(campsite.name, campsite.description, baseUrl + campsite.image)} 
                         />
                     </View>
                 </Card>
             </Animatable.View>
-        );
-    }
-    return <View />;
+
+        )
+    } 
+        return <View/>
 }
 
+function RenderComments({comments}) {
+
+    const renderCommentItem = ({item}) => {
+        return (
+            <View style={{margin: 10}}>
+                <Text style={{fontSize: 14}}>{item.text}</Text>
+                <Rating 
+                    style={{fontSize: 12}}
+                    startingValue={item.rating}
+                    imageSize={10}
+                    style={{alignItems: 'flex-start', paddingVertical: '5%'}}
+                    readonly
+                />
+                <Text style={{fontSize: 12}}>{`-- ${item.author}, ${item.date}`}</Text>
+            </View>
+        );
+    };
+
+    return (
+        <Animatable.View animation='fadeInUp' duration={2000} delay={1000}>
+            <Card title='Comments'>
+                <FlatList
+                    data={comments}
+                    renderItem={renderCommentItem}
+                    keyExtractor={item => item.id.toString()}
+                />
+            </Card>
+        </Animatable.View>
+    );
+}
+
+
 class CampsiteInfo extends Component {
-    constructor(props){
+
+    constructor(props) {
         super(props);
+
         this.state = {
             showModal: false,
             rating: 5,
             author: '',
-            text: ''
+            text: '',
         };
     }
 
-    toggleModal(){
-        this.setState({showModal: !this.state.showModal})
+    toggleModal() {
+        this.setState({showModal: !this.state.showModal});
     }
 
-    handleComment(campsiteId){
-        const date = new Date().toISOString();
-        this.props.postComment(campsiteId, this.state.rating, this.state.author, this.state.text, date);
-        this.toggleModal();
+    handleComment(campsiteId) {
+        console.log(JSON.stringify(this.state));
+        this.toggleModal(campsiteId);
     }
 
-    resetForm(){
-        this.setState({showModal: false,
+    resetForm() {
+        this.setState({
+            showModal: false,
+        });
+    }
+
+    submitForm() {
+        this.setState({
+            showModal: false,
             rating: 5,
             author: '',
-            text: ''})
+            text: '',
+        });
     }
-
-    static navigationOptions = {
-        title: 'Campsite Information'
-    };
 
     markFavorite(campsiteId) {
         this.props.postFavorite(campsiteId);
     }
+    static navigationOptions = {
+        tilte:"Campsite Information"
+    }
 
     render() {
-        const campsiteId = this.props.navigation.getParam('campsiteId');
+        const campsiteId = this.props.navigation.getParam("campsiteId");
+        const campsite = this.props.campsites.campsites.filter( camp => camp.id == campsiteId)[0];
         const comments = this.props.comments.comments.filter(comment => comment.campsiteId === campsiteId);
-        const campsite = this.props.campsites.campsites.filter(campsite => campsite.id === campsiteId)[0];
+
         return (
             <ScrollView>
                 <RenderCampsite campsite={campsite} 
-                                favorite={this.props.favorites.includes(campsiteId)}
-                                markFavorite={() => this.markFavorite(campsiteId)}
-                                showModal={() => this.toggleModal()} />
+                    favorite={this.props.favorites.includes(campsiteId)}
+                    markFavorite={() => this.markFavorite(campsiteId)}
+                    onShowModal={() => this.toggleModal()}
+                />
                 <RenderComments comments={comments} />
                 <Modal
                     animationType={'slide'}
@@ -207,70 +219,70 @@ class CampsiteInfo extends Component {
                     visible={this.state.showModal}
                     onRequestClose={() => this.toggleModal()}>
                     <View style={styles.modal}>
-                            <View style={{margin: 10}}>
-                                <Button
-                                    onPress={() => {
-                                        this.handleComment(campsiteId);
-                                        this.resetForm();
-                                    }}
-                                    color='#5637DD'
-                                    title='Submit'
-                                />
-                            </View>
+                        <Rating 
+                            showRating
+                            startingValue={this.rating}
+                            imageSize={40}
+                            onFinishRating={(rating)=>this.setState({rating: rating})} 
+                            style={{paddingVertical: 10}}
+                        />
+                        <Input 
+                            placeholder='AUTHOR'
+                            leftIcon={{ type: 'font-awesome', name: 'user-o' }}
+                            leftIconContainerStyle={'paddingRight: 10'}
+                            onChangeText={(text)=>this.setState({text: text})} 
+                            value=''
+                        />
+                        <Input 
+                            placeholder='COMMENT'
+                            leftIcon={{ type: 'font-awesome', name: 'comment-o' }}
+                            leftIconContainerStyle={'paddingRight: 10'}
+                            onChangeText={(text)=>this.setState({text: text})}
+                            value=''
+                        />
+                        <View>
+                        <Button 
+                            onPress={() => {
+                                this.toggleModal();
+                                this.submitForm();
+                            }}
+                            color='#5637DD'
+                            title='Submit'
+                        />
+                        </View>
                         <View style={{margin: 10}}>
                             <Button
                                 onPress={() => {
                                     this.toggleModal();
-                                    this.resetForm();
+                                    this.restForm();
                                 }}
                                 color='#808080'
                                 title='Cancel'
                             />
                         </View>
-                    <Rating 
-                        showRating
-                        startingValue={this.state.rating}
-                        imageSize={40}
-                        onFinishRating={(rating)=>this.setState({rating: rating})}
-                        style={{paddingVertical: 10}}
-                        />
-                    <Input 
-                        placeholder= 'name'
-                        leftIcon={{ type: 'font-awesome', name: 'user-o' }}
-                        leftIconContainerStyle={{paddingRight: 10}}
-                        onChangeText={(name)=> this.setState({author: name})}
-                        value={this.state.author}
-                    />
-                    <Input 
-                        placeholder= 'comment'
-                        leftIcon={{ type: 'font-awesome', name: 'comment-o' }}
-                        leftIconContainerStyle={{paddingRight: 10}}
-                        onChangeText={(comment)=> this.setState({text: comment})}
-                        value={this.state.text}
-                    />
                     </View>
+                    
                 </Modal>
             </ScrollView>
-        );
+        )
     }
 }
 
 const styles = StyleSheet.create({
     cardRow: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        flex: 1,
-        flexDirection: 'row',
-        margin: 20
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "row",
+        margin: 20,
     },
     cardItem: {
+        flex: 1,
         margin: 10,
-        flex: 1
     },
     modal: {
         justifyContent: 'center',
-        margin: 20
-    },
-});
+        margin: 20,
+    }
+})
 
-export default connect(mapStateToProps, mapDispatchToProps)(CampsiteInfo);
+export default connect(mapStateToProps, mapDispatchToProps)(CampsiteInfo); 
