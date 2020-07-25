@@ -3,7 +3,7 @@
   "expoServerPort": null,
   "packagerPort": null,
   "packagerPid": null,
-  "expoServerNgrokUrl": null,
-  "packagerNgrokUrl": null,
-  "ngrokPid": null
+  "expoServerNgrokUrl": "https://5v-vbp.ryanjt.nucampsite.exp.direct",
+  "packagerNgrokUrl": "https://packager.5v-vbp.ryanjt.nucampsite.exp.direct",
+  "ngrokPid": 18294
 }
